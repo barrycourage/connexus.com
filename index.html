@@ -1004,34 +1004,7 @@
             this.style.height = Math.min(this.scrollHeight, 100) + 'px';
         });
         
-            // FOR DEVELOPMENT ONLY - Skip actual SMS
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 Verification code for ${formattedPhone}: ${user.verificationCode}`);
-      
-      res.json({ 
-        message: 'Verification code sent successfully',
-        phoneNumber: formattedPhone,
-        // FOR DEVELOPMENT ONLY - Remove this in production!
-        developmentCode: user.verificationCode
-      });
-    } else {
-      // Production SMS sending with Twilio
-      await twilioClient.messages.create({
-        body: `Your Connexus verification code is: ${user.verificationCode}`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: `+${formattedPhone}`
-      });
 
-      res.json({ 
-        message: 'Verification code sent successfully',
-        phoneNumber: formattedPhone
-      });
-    }
-  } catch (error) {
-    console.error('Send code error:', error);
-    res.status(500).json({ error: 'Failed to send verification code' });
-  }
-});
     </script>
 </body>
 </html>
