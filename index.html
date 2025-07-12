@@ -1005,6 +1005,114 @@
         });
         
 
+
+
+
+
+
+
+
+
+        
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const dotenv = require('dotenv');
+const app = express();
+
+// Load .env config
+dotenv.config();
+
+// Set NODE_ENV manually if not set
+if (!process.env.NODE_ENV) {
+  process.env.NODE_ENV = 'development';
+}
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+
+// Dummy in-memory storage for testing
+const users = {}; // { phone: { verificationCode, name } }
+
+// Twilio Setup
+const twilioClient = require('twilio')(
+  process.env.TWILIO_ACCOUNT_SID || '',
+  process.env.TWILIO_AUTH_TOKEN || ''
+);
+
+// Helper: Generate 6-digit code
+function generateCode() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// ✅ Send verification code
+app.post('/api/auth/send-code', async (req, res) => {
+  const { phoneNumber } = req.body;
+
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'Phone number is required' });
+  }
+
+  try {
+    const formattedPhone = phoneNumber.replace(/\D/g, '');
+    const verificationCode = generateCode();
+    users[formattedPhone] = { verificationCode };
+
+    // 🌐 Development Mode (Mock SMS)
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 Dev Code for ${formattedPhone}: ${verificationCode}`);
+      return res.json({
+        message: 'Verification code sent (dev mode)',
+        phoneNumber: formattedPhone,
+        developmentCode: verificationCode
+      });
+    }
+
+    // 📲 Production Mode (Real SMS)
+    await twilioClient.messages.create({
+      body: `Your Connexus verification code is: ${verificationCode}`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: `+${formattedPhone}`
+    });
+
+    res.json({
+      message: 'Verification code sent',
+      phoneNumber: formattedPhone
+    });
+  } catch (error) {
+    console.error('Send code error:', error.message, error.stack);
+    res.status(500).json({ error: error.message || 'Failed to send verification code' });
+  }
+});
+
+// ✅ Verify code
+app.post('/api/auth/verify-code', (req, res) => {
+  const { phoneNumber, code, name } = req.body;
+
+  if (!phoneNumber || !code || !name) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+
+  const formattedPhone = phoneNumber.replace(/\D/g, '');
+  const stored = users[formattedPhone];
+
+  if (!stored || stored.verificationCode !== code) {
+    return res.status(400).json({ error: 'Invalid verification code' });
+  }
+
+  const user = { id: formattedPhone, name };
+  const token = `mock-token-${Date.now()}`;
+
+  res.json({ token, user });
+});
+
+// ✅ Start server
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Server running on http://0.0.0.0:${PORT} [${process.env.NODE_ENV}]`);
+});
+        
     </script>
 </body>
 </html>
